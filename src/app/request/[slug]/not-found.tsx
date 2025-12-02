@@ -8,7 +8,7 @@ export default function NotFound() {
       <div className="text-center">
         <div className="flex items-center justify-center gap-2 mb-6">
           <Shield className="h-10 w-10 text-emerald-600" />
-          <span className="font-bold text-2xl">ScopeGuard</span>
+          <span className="font-bold text-2xl">ScopePilot</span>
         </div>
 
         <div className="bg-white rounded-xl border p-8 max-w-md">

@@ -97,7 +97,7 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="h-16 flex items-center justify-between px-4 border-b">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Shield className="h-8 w-8 text-emerald-600 flex-shrink-0" />
-            {!collapsed && <span className="font-bold text-xl">ScopeGuard</span>}
+            {!collapsed && <span className="font-bold text-xl">ScopePilot</span>}
           </Link>
           <Button
             variant="ghost"

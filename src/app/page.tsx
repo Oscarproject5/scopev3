@@ -9,7 +9,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="h-8 w-8 text-emerald-600" />
-            <span className="font-bold text-xl">ScopeGuard</span>
+            <span className="font-bold text-xl">ScopePilot</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login"><Button variant="ghost">Sign In</Button></Link>
@@ -27,7 +27,7 @@ export default function HomePage() {
             Let AI Be the <span className="text-emerald-600">&quot;Bad Cop&quot;</span><br />for Scope Creep
           </h1>
           <p className="text-xl text-slate-600 mb-8 max-w-2xl mx-auto">
-            Freelancers lose thousands to unpaid work because asking for money feels awkward. ScopeGuard handles the pricing so you can stay the &quot;good guy.&quot;
+            Freelancers lose thousands to unpaid work because asking for money feels awkward. ScopePilot handles the pricing so you can stay the &quot;good guy.&quot;
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Link href="/login"><Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-lg px-8 h-14">Start Free Trial<ArrowRight className="ml-2 h-5 w-5" /></Button></Link>
@@ -60,7 +60,7 @@ export default function HomePage() {
               <div className="space-y-4 text-slate-300">
                 <p className="text-lg">Client: &quot;Hey, can we also get a dark mode version?&quot;</p>
                 <p className="text-lg">You: &quot;Sure! Pop that into my request portal: [link]&quot;</p>
-                <p className="text-lg">ScopeGuard: &quot;This is outside scope. Cost: $225&quot;</p>
+                <p className="text-lg">ScopePilot: &quot;This is outside scope. Cost: $225&quot;</p>
               </div>
               <div className="mt-6 p-4 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
                 <p className="text-emerald-300"><strong>Result:</strong> You stay the good guy. The System handles the money talk.</p>
@@ -118,15 +118,15 @@ export default function HomePage() {
       <section className="py-20 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Stop Working for Free?</h2>
-          <p className="text-slate-600 mb-8">Join freelancers who protect their time and income with ScopeGuard.</p>
+          <p className="text-slate-600 mb-8">Join freelancers who protect their time and income with ScopePilot.</p>
           <Link href="/login"><Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-lg px-8 h-14">Get Started Free<ArrowRight className="ml-2 h-5 w-5" /></Button></Link>
         </div>
       </section>
 
       <footer className="py-8 px-4 border-t">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2"><Shield className="h-6 w-6 text-emerald-600" /><span className="font-semibold">ScopeGuard</span></div>
-          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} ScopeGuard. Protect your scope.</p>
+          <div className="flex items-center gap-2"><Shield className="h-6 w-6 text-emerald-600" /><span className="font-semibold">ScopePilot</span></div>
+          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} ScopePilot. Protect your scope.</p>
         </div>
       </footer>
     </div>

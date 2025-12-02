@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, uuid, jsonb, integer, boolean, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Users table - Freelancers who use ScopeGuard
+// Users table - Freelancers who use ScopePilot
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: text('email').notNull().unique(),

@@ -33,7 +33,7 @@ export default function LoginPage() {
       if (result?.error) {
         toast.error('Failed to sign in');
       } else {
-        toast.success('Welcome to ScopeGuard!');
+        toast.success('Welcome to ScopePilot!');
         router.push('/dashboard');
       }
     } catch (error) {
@@ -54,7 +54,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <Link href="/" className="flex items-center justify-center gap-2 mb-4">
             <Shield className="h-10 w-10 text-emerald-600" />
-            <span className="font-bold text-2xl">ScopeGuard</span>
+            <span className="font-bold text-2xl">ScopePilot</span>
           </Link>
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>Sign in to manage your projects and protect your scope</CardDescription>

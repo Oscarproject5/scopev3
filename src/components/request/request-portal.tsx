@@ -675,7 +675,7 @@ export function RequestPortal({ project }: RequestPortalProps) {
       <div className="fixed bottom-0 w-full bg-white border-t py-3">
         <div className="max-w-2xl mx-auto px-4 flex items-center justify-center gap-2 text-sm text-slate-500">
           <Shield className="h-4 w-4 text-emerald-600" />
-          Powered by ScopeGuard
+          Powered by ScopePilot
         </div>
       </div>
     </div>

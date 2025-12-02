@@ -240,7 +240,7 @@ export const ContractScope = forwardRef<HTMLDivElement, ContractScopeProps>(
         <div className="mt-12 pt-6 border-t border-gray-200">
           <div className="flex justify-between items-center text-gray-500 text-sm">
             <p>This document outlines the agreed scope of work.</p>
-            <p>Powered by ScopeGuard</p>
+            <p>Powered by ScopePilot</p>
           </div>
         </div>
       </div>

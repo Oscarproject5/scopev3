@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ScopeGuard - Automated Scope Pricing for Freelancers',
+  title: 'ScopePilot - Automated Scope Pricing for Freelancers',
   description: 'Stop doing free work. Let AI handle the awkward money conversations.',
 };
 

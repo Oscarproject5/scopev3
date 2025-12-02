@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, projects, requests } from '@/lib/db';
 import { eq } from 'drizzle-orm';
-import { analyzeRequest, analyzeRequestWithAnswers, type ScopeAnalysis } from '@/lib/ai/scope-analyzer';
+import {
+  generateClarificationQuestions,
+  analyzeRequestFull,
+  type OrchestratorResult,
+} from '@/lib/ai/orchestrator';
 
-// POST /api/analyze - Analyze a client request
+// POST /api/analyze - Analyze a client request using multi-agent system
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -22,7 +26,7 @@ export async function POST(request: NextRequest) {
       with: {
         rules: true,
         contextNotes: true,
-        user: true, // NEW: Need user for tier-based pricing
+        user: true,
       },
     });
 
@@ -51,37 +55,49 @@ export async function POST(request: NextRequest) {
     // Check if this is a submission with answers (second call) or initial request (first call)
     const hasAnswers = clarificationAnswers && Object.keys(clarificationAnswers).length > 0;
 
-    let analysis: ScopeAnalysis;
+    let analysis: OrchestratorResult;
     let suggestedPrice: number | null = null;
 
     if (hasAnswers) {
-      // CLIENT PROVIDED ANSWERS - Run AI analysis for pricing SUGGESTIONS
-      // AI does NOT decide scope - only provides estimates for freelancer to review
-      analysis = await analyzeRequestWithAnswers(
+      // =====================================================================
+      // PHASE 2-6: Full Multi-Agent Analysis
+      // Client provided answers - run complete scope creep pricing workflow
+      // =====================================================================
+      analysis = await analyzeRequestFull({
         requestText,
         clarificationAnswers,
+        rules: project.rules,
+        user: project.user,
+        contextNotes: project.contextNotes || [],
+      });
+
+      suggestedPrice = analysis.suggestedPrice || null;
+    } else {
+      // =====================================================================
+      // PHASE 1: Information Gathering
+      // No answers yet - generate clarification questions
+      // =====================================================================
+      const clarificationQuestions = await generateClarificationQuestions(
+        requestText,
         project.rules,
-        project.user,
         project.contextNotes || []
       );
 
-      // Store suggested price for freelancer reference (not a decision)
-      suggestedPrice = analysis.priceBreakdown?.recommendedPrice || analysis.suggestedPrice || null;
-    } else {
-      // INITIAL REQUEST: No answers yet - generate clarification questions
-      analysis = await analyzeRequest(
-        requestText,
-        project.rules,
-        project.user,
-        project.contextNotes || []
-      );
+      // Return pending_review with questions - freelancer will decide scope
+      analysis = {
+        verdict: 'pending_review',
+        reasoning: 'This request has been submitted for review. Please answer the clarification questions below to help the freelancer understand your needs and provide an accurate quote.',
+        scopeSummary: requestText,
+        relevantRules: [],
+        confidence: 1.0,
+        clarificationQuestions,
+      };
     }
 
     // SIMPLIFIED STATUS: AI never decides scope
     // - No answers yet = pending_questions (client needs to answer)
     // - Has answers = pending_freelancer_approval (freelancer decides scope)
     const status = hasAnswers ? 'pending_freelancer_approval' : 'pending_questions';
-    const freelancerApproved: boolean | null = null; // Freelancer hasn't decided yet
 
     // Save the request if needed
     let savedRequest = null;
@@ -102,23 +118,23 @@ export async function POST(request: NextRequest) {
 
         // AI's SUGGESTED price (freelancer may change this)
         quotedPrice: suggestedPrice?.toString() || null,
-        estimatedHours: analysis.priceBreakdown?.estimatedHours?.toString() || null,
-        laborCost: analysis.priceBreakdown?.laborCost?.toString() || null,
-        overheadCost: analysis.priceBreakdown?.overhead?.amount?.toString() || null,
-        profitAmount: analysis.priceBreakdown?.profit?.amount?.toString() || null,
+        estimatedHours: analysis.estimatedHours?.toString() || null,
+        laborCost: analysis.priceBreakdown?.directCosts?.labor?.toString() || null,
+        overheadCost: analysis.priceBreakdown?.indirectCosts?.pmOverhead?.toString() || null,
+        profitAmount: analysis.priceBreakdown?.adjustments?.scopePremiumAmt?.toString() || null,
 
         // Buffer tracking
-        baseSubtotal: analysis.priceBreakdown?.baseSubtotal?.toString() || null,
-        bufferPercentage: analysis.priceBreakdown?.safetyBuffer?.percentage?.toString() || null,
-        bufferAmount: analysis.priceBreakdown?.safetyBuffer?.amount?.toString() || null,
-        bufferReasoning: analysis.priceBreakdown?.safetyBuffer?.reasoning || null,
+        baseSubtotal: analysis.priceBreakdown?.directCosts?.subtotal?.toString() || null,
+        bufferPercentage: analysis.priceBreakdown?.adjustments?.riskPremiumPct?.toString() || null,
+        bufferAmount: analysis.priceBreakdown?.adjustments?.riskPremiumAmt?.toString() || null,
+        bufferReasoning: 'Market-informed pricing with complexity buffer',
 
         // AI analysis transparency fields (for freelancer review)
         pricingReasoning: analysis.pricingReasoning || null,
-        marketResearchData: analysis.pricingContextUsed ? {
+        marketResearchData: analysis.marketResearchSummary ? {
           searchQueries: [],
           rateRanges: [],
-          marketInsights: [analysis.marketResearchSummary || ''],
+          marketInsights: [analysis.marketResearchSummary],
           searchedAt: new Date().toISOString(),
         } : null,
         pricingContextUsed: analysis.pricingContextUsed ? {
@@ -147,8 +163,8 @@ export async function POST(request: NextRequest) {
       },
       // AI's pricing SUGGESTION (freelancer will review and decide)
       pricing: analysis.priceBreakdown ? {
-        suggestedPrice: analysis.priceBreakdown.recommendedPrice,
-        priceRange: analysis.priceBreakdown.priceRange,
+        suggestedPrice: analysis.suggestedPrice,
+        priceRange: analysis.priceRange,
         breakdown: analysis.priceBreakdown,
         confidence: analysis.confidence,
         // Transparency data for freelancer review

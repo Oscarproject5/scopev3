@@ -33,7 +33,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
         <div className="flex items-center gap-8">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Shield className="h-8 w-8 text-emerald-600" />
-            <span className="font-bold text-xl">ScopeGuard</span>
+            <span className="font-bold text-xl">ScopePilot</span>
           </Link>
           <div className="hidden md:flex items-center gap-1">
             <Link href="/dashboard">
