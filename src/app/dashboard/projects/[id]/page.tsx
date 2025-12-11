@@ -206,11 +206,125 @@ export default async function ProjectDetailPage({
                           <p className="text-sm text-slate-600">
                             {(request.aiAnalysis as any).reasoning}
                           </p>
+                          {/* Show AI's suggested price for freelancer to review */}
+                          {(request.aiAnalysis as any).suggestedPrice && !request.quotedPrice && (
+                            <p className="text-sm font-medium text-blue-600 mt-2">
+                              AI Suggested: ${(request.aiAnalysis as any).suggestedPrice}
+                              <span className="text-xs text-slate-500 ml-2">(pending your approval)</span>
+                            </p>
+                          )}
+                          {/* Show final quoted price after freelancer approves */}
                           {request.quotedPrice && (
                             <p className="text-sm font-medium text-emerald-600 mt-2">
                               Quoted: ${request.quotedPrice}
                             </p>
                           )}
+                          {/* Profit Leak Detection */}
+                          {(request.aiAnalysis as any).profitLeaks?.identified?.length > 0 && (
+                            <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded">
+                              <p className="text-sm font-medium text-orange-800 mb-1">Potential Profit Leaks:</p>
+                              <ul className="text-xs text-orange-700 list-disc list-inside">
+                                {(request.aiAnalysis as any).profitLeaks.identified.map((leak: string, i: number) => (
+                                  <li key={i}>{leak}</li>
+                                ))}
+                              </ul>
+                              {(request.aiAnalysis as any).profitLeaks.bufferAdded > 0 && (
+                                <p className="text-xs text-orange-600 mt-1">
+                                  +${(request.aiAnalysis as any).profitLeaks.bufferAdded} buffer added: {(request.aiAnalysis as any).profitLeaks.bufferReason}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Scope Creep Verdict Section */}
+                      {(request.aiAnalysis as any)?.scopeAnalysis && (
+                        <div className={`p-4 rounded-lg mb-3 border-2 ${
+                          (request.aiAnalysis as any).scopeAnalysis.verdict === 'IN_SCOPE'
+                            ? 'bg-emerald-50 border-emerald-300'
+                            : (request.aiAnalysis as any).scopeAnalysis.verdict === 'OUT_OF_SCOPE'
+                            ? 'bg-amber-50 border-amber-300'
+                            : (request.aiAnalysis as any).scopeAnalysis.verdict === 'CLARIFICATION_ONLY'
+                            ? 'bg-blue-50 border-blue-300'
+                            : 'bg-purple-50 border-purple-300'
+                        }`}>
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="text-sm font-semibold text-slate-800">🔍 Scope Creep Analysis</p>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  (request.aiAnalysis as any).scopeAnalysis.verdict === 'IN_SCOPE'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : (request.aiAnalysis as any).scopeAnalysis.verdict === 'OUT_OF_SCOPE'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : (request.aiAnalysis as any).scopeAnalysis.verdict === 'CLARIFICATION_ONLY'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {(request.aiAnalysis as any).scopeAnalysis.verdict?.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+
+                              {(request.aiAnalysis as any).scopeAnalysis.verdictReasoning && (
+                                <p className="text-sm text-slate-700 mb-3">
+                                  {(request.aiAnalysis as any).scopeAnalysis.verdictReasoning}
+                                </p>
+                              )}
+
+                              {(request.aiAnalysis as any).scopeAnalysis.contractAlignment && (
+                                <div className="space-y-2 text-sm">
+                                  {(request.aiAnalysis as any).scopeAnalysis.contractAlignment.matchingDeliverables?.length > 0 && (
+                                    <div>
+                                      <p className="font-medium text-emerald-700">✓ Matching Deliverables:</p>
+                                      <ul className="list-disc list-inside text-slate-600 ml-2">
+                                        {(request.aiAnalysis as any).scopeAnalysis.contractAlignment.matchingDeliverables.map((item: string, i: number) => (
+                                          <li key={i}>{item}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+
+                                  {(request.aiAnalysis as any).scopeAnalysis.contractAlignment.conflictingClauses?.length > 0 && (
+                                    <div>
+                                      <p className="font-medium text-amber-700">⚠ Conflicting Clauses:</p>
+                                      <ul className="list-disc list-inside text-slate-600 ml-2">
+                                        {(request.aiAnalysis as any).scopeAnalysis.contractAlignment.conflictingClauses.map((item: string, i: number) => (
+                                          <li key={i}>{item}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+
+                                  {(request.aiAnalysis as any).scopeAnalysis.contractAlignment.grayAreas?.length > 0 && (
+                                    <div>
+                                      <p className="font-medium text-purple-700">❓ Gray Areas:</p>
+                                      <ul className="list-disc list-inside text-slate-600 ml-2">
+                                        {(request.aiAnalysis as any).scopeAnalysis.contractAlignment.grayAreas.map((item: string, i: number) => (
+                                          <li key={i}>{item}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {(request.aiAnalysis as any).scopeAnalysis.recommendedAction && (
+                                <div className="mt-3 pt-3 border-t border-slate-200">
+                                  <p className="text-sm">
+                                    <span className="font-medium text-slate-700">AI Recommendation:</span>{' '}
+                                    <span className="text-slate-900 capitalize">
+                                      {(request.aiAnalysis as any).scopeAnalysis.recommendedAction.replace(/_/g, ' ')}
+                                    </span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-white/50 p-2 rounded text-xs text-slate-600">
+                            <strong>Note:</strong> This is an AI analysis to help you make a decision. You have the final say on whether to approve, modify pricing, or decline this request.
+                          </div>
                         </div>
                       )}
 
@@ -393,6 +507,7 @@ export default async function ProjectDetailPage({
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; className: string }> = {
     pending: { label: 'Pending', className: 'bg-slate-100 text-slate-700' },
+    analyzing: { label: 'AI Analyzing...', className: 'bg-indigo-100 text-indigo-700 animate-pulse' },
     in_scope: { label: 'In Scope', className: 'bg-emerald-100 text-emerald-700' },
     out_of_scope: { label: 'Out of Scope', className: 'bg-amber-100 text-amber-700' },
     pending_client_approval: { label: 'Awaiting Client', className: 'bg-blue-100 text-blue-700' },

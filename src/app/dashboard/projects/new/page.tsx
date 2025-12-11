@@ -29,13 +29,14 @@ export default function NewProjectPage() {
   const [newDeliverable, setNewDeliverable] = useState('');
   const [customRules, setCustomRules] = useState<{ rule: string; description: string }[]>([]);
   const [contractText, setContractText] = useState('');
-  const [requireApproval, setRequireApproval] = useState(false);
+  const [requireApproval, setRequireApproval] = useState(true);
 
   // New pricing context fields
   const [originalContractPrice, setOriginalContractPrice] = useState('');
   const [projectType, setProjectType] = useState('');
   const [clientLocation, setClientLocation] = useState('');
   const [projectTimeline, setProjectTimeline] = useState('');
+
 
   const addDeliverable = () => {
     if (newDeliverable.trim()) {
@@ -354,25 +355,14 @@ export default function NewProjectPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="projectType">Project Type</Label>
-                    <select
+                    <Input
                       id="projectType"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="e.g., Construction, Demolition, Web Design, Landscaping..."
                       value={projectType}
                       onChange={(e) => setProjectType(e.target.value)}
-                    >
-                      <option value="">Select project type...</option>
-                      <option value="website">Website</option>
-                      <option value="mobile-app">Mobile App</option>
-                      <option value="design">Design</option>
-                      <option value="backend-api">Backend / API</option>
-                      <option value="full-stack">Full Stack Application</option>
-                      <option value="consulting">Consulting</option>
-                      <option value="ecommerce">E-commerce</option>
-                      <option value="wordpress">WordPress</option>
-                      <option value="other">Other</option>
-                    </select>
+                    />
                     <p className="text-xs text-slate-500">
-                      What type of project is this? Enables industry-specific pricing.
+                      What industry/type is this project? (Construction, Design, Software, etc.)
                     </p>
                   </div>
                 </div>
@@ -411,6 +401,7 @@ export default function NewProjectPage() {
                     </p>
                   </div>
                 </div>
+
               </CardContent>
             </Card>
           </TabsContent>

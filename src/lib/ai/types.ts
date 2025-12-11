@@ -62,10 +62,38 @@ export interface ScopeChange {
   affectedDeliverables: string[];
   dependencies: string[];
   notes?: string;
+  scopeJustification?: string; // Why this is/isn't in scope
 }
 
+export type ScopeVerdict = 'IN_SCOPE' | 'OUT_OF_SCOPE' | 'BOUNDARY_CASE' | 'CLARIFICATION_ONLY';
+
+export type ScopeRecommendedAction = 'approve_free' | 'price_as_change_order' | 'negotiate' | 'decline';
+
 export interface ScopeAnalysis {
-  summary: {
+  // Scope Creep Verdict - the main determination
+  verdict: ScopeVerdict;
+  verdictReasoning: string;
+
+  // Contract alignment analysis
+  contractAlignment: {
+    matchingDeliverables: string[];  // Which original deliverables cover this
+    conflictingClauses: string[];    // Clauses that suggest this is excluded
+    grayAreas: string[];             // Ambiguous aspects
+  };
+
+  // Detailed change breakdown
+  changes: ScopeChange[];
+
+  // Impact assessment
+  overallSeverity: 'minor' | 'moderate' | 'significant' | 'major';
+  effortMultiplier: number; // 1.0 - 3.0
+  isOutOfScope: boolean;
+
+  // AI's recommended action for the freelancer
+  recommendedAction: ScopeRecommendedAction;
+
+  // Legacy fields for backwards compatibility
+  summary?: {
     totalChanges: number;
     additions: number;
     modifications: number;
@@ -73,13 +101,12 @@ export interface ScopeAnalysis {
     clarifications: number;
     reductions: number;
   };
-  changes: ScopeChange[];
-  overallAssessment: {
+  overallAssessment?: {
     severity: 'minor' | 'moderate' | 'significant' | 'major';
-    effortMultiplier: number; // 1.0 - 3.0
+    effortMultiplier: number;
     recommendation: 'proceed' | 'proceed_with_caution' | 'requires_renegotiation' | 'separate_project';
   };
-  ambiguities: string[];
+  ambiguities?: string[];
 }
 
 // ============================================================================
@@ -279,12 +306,20 @@ export interface PricingContext {
   contextNotes?: string[];
 }
 
+export interface PriceCorrection {
+  requestText: string;
+  aiPrice: number;
+  correctedPrice: number;
+  reason?: string;
+}
+
 export interface OrchestratorInput {
   requestText: string;
   clarificationAnswers?: Record<string, string>;
   rules: ProjectRules;
   user: User;
   contextNotes?: ContextNote[];
+  pastCorrections?: PriceCorrection[]; // Learn from freelancer's past price changes
 }
 
 export interface OrchestratorResult {
@@ -315,4 +350,11 @@ export interface OrchestratorResult {
   marketResearchSummary?: string;
   pricingReasoning?: string;
   improvementTips?: string[];
+
+  // Profit leak detection
+  profitLeaks?: {
+    identified: string[];
+    bufferAdded: number;
+    bufferReason: string;
+  };
 }

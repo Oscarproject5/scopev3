@@ -212,6 +212,7 @@ export default async function DashboardPage() {
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     pending: { label: 'Pending', variant: 'secondary' },
+    analyzing: { label: 'Analyzing...', variant: 'outline' },
     in_scope: { label: 'In Scope', variant: 'default' },
     pending_client_approval: { label: 'Awaiting Client', variant: 'outline' },
     pending_freelancer_approval: { label: 'Review', variant: 'outline' },

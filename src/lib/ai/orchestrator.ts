@@ -67,14 +67,29 @@ Respond with JSON:
   "canProceed": true/false
 }`;
 
-const SCOPE_ANALYZER_PROMPT = `You are a scope change detection agent. Analyze the delta between original scope and new request.
+const SCOPE_ANALYZER_PROMPT = `You are a scope change detection agent. Your primary job is to determine if the client's request is within the original contract boundaries or represents scope creep.
 
-## Classification Types
-- ADDITION: Completely new work not in original scope
-- MODIFICATION: Change to existing requirement
-- EXPANSION: More of the same type of work (e.g., 10 pages instead of 5)
-- CLARIFICATION: Ambiguous requirement now specified
-- REDUCTION: Removal of original scope
+## Critical Task: Scope Verdict
+Compare the client's NEW REQUEST against the ORIGINAL CONTRACT DELIVERABLES and determine:
+- IN_SCOPE: Request is clearly covered by the original contract
+- OUT_OF_SCOPE: Request is beyond the original contract boundaries (scope creep)
+- BOUNDARY_CASE: Request is ambiguous - could be argued either way
+- CLARIFICATION_ONLY: Request is just clarifying how to deliver existing scope
+
+## Classification Types for Changes
+- ADDITION: Completely new work not in original scope (usually OUT_OF_SCOPE)
+- MODIFICATION: Change to existing requirement (depends on magnitude)
+- EXPANSION: More of the same type of work (e.g., 10 pages instead of 5) (usually OUT_OF_SCOPE)
+- CLARIFICATION: Ambiguous requirement now specified (usually IN_SCOPE)
+- REDUCTION: Removal of original scope (IN_SCOPE - no extra charge)
+
+## Scope Analysis Framework
+1. Review original contract deliverables
+2. Identify what the client is requesting
+3. Check if it's explicitly included in deliverables
+4. Check if it's explicitly excluded
+5. Assess if it's a reasonable interpretation of existing scope
+6. Consider industry standards for what's "included"
 
 ## Impact Assessment
 Direct Impact (1-5): How much direct work
@@ -83,105 +98,108 @@ Risk Level: Low/Medium/High
 
 Respond with JSON:
 {
+  "verdict": "IN_SCOPE|OUT_OF_SCOPE|BOUNDARY_CASE|CLARIFICATION_ONLY",
+  "verdictReasoning": "Detailed explanation of why this verdict was chosen",
+  "contractAlignment": {
+    "matchingDeliverables": ["Which original deliverables cover this"],
+    "conflictingClauses": ["Any clauses that suggest this is excluded"],
+    "grayAreas": ["Ambiguous aspects"]
+  },
   "changes": [
     {
       "id": "SC-001",
-      "description": "Description",
+      "description": "Description of the change",
       "classification": "ADDITION|MODIFICATION|EXPANSION|CLARIFICATION|REDUCTION",
       "directImpact": 1-5,
       "rippleEffect": 1-5,
-      "riskLevel": "low|medium|high"
+      "riskLevel": "low|medium|high",
+      "scopeJustification": "Why this is/isn't in scope"
     }
   ],
   "overallSeverity": "minor|moderate|significant|major",
   "effortMultiplier": 1.0-3.0,
-  "isOutOfScope": true/false
+  "isOutOfScope": true/false,
+  "recommendedAction": "approve_free|price_as_change_order|negotiate|decline"
 }`;
 
-const MARKET_RESEARCHER_PROMPT = `You are a market research agent. Gather current pricing data for scope creep analysis.
+const MARKET_RESEARCHER_PROMPT = `You are a market research agent. Search for current pricing.
 
-Use web search to find:
-1. Labor rates for specific skills in the project location
-2. Industry standard markups for scope changes (typically 10-25%)
-3. Regional cost multipliers
-4. Similar project pricing benchmarks
+## Your Job:
+1. Search for actual market prices for the requested service
+2. Determine if this is add-on work to an existing project (resources already in place)
+3. If add-on, apply 30-50% discount - work still takes time and effort
 
-Search strategies:
-- "[skill] hourly rate [location] 2024 2025"
-- "[trade] contractor rates [region]"
-- "scope change markup [industry] standard"
-
-Respond with JSON:
+## Respond with JSON:
 {
-  "laborRates": {
-    "primarySkill": {
-      "medianRate": number,
-      "range": { "min": number, "max": number },
-      "source": "description of source"
-    }
+  "marketPriceRange": {
+    "standalone": { "min": number, "max": number },
+    "asAddOn": { "min": number, "max": number }
   },
-  "scopeChangeMarkup": {
-    "industryStandard": "15-25%",
-    "recommended": 20
-  },
-  "locationMultiplier": 1.0,
-  "marketInsights": ["insight1", "insight2"],
+  "isLikelyAddOn": true/false,
+  "addOnReasoning": "explanation",
+  "marketInsights": ["findings"],
   "confidence": "high|medium|low"
 }`;
 
-const PRICING_CALCULATOR_PROMPT = `You are a pricing calculator agent. Compute accurate, defensible scope creep pricing.
+const PRICING_CALCULATOR_PROMPT = `You are a pricing calculator. Pick a fair price from the market research.
 
-## Core Formula
-TOTAL = (Direct Costs + Indirect Costs) × (1 + Risk Premium) × (1 + Scope Change Premium) × Location Multiplier
+## Rules:
+1. Use the market research price range provided
+2. Pick a price in the MIDDLE of the range, not the minimum
+3. For add-on work, use "asAddOn" range. For standalone, use "standalone" range
+4. Don't underprice - you're running a business
 
-## Pricing Components
-- Direct Labor: Hours × Hourly Rate
-- Overhead: 15-25% of direct costs
-- Profit Margin: 10-20%
-- Risk Premium: 5-20% based on complexity
-- Scope Change Premium: 10-25% for disruption
+## PROFIT LEAK DETECTION
+Before finalizing, check for hidden costs that could eat into profit:
+- Travel/transportation costs
+- Disposal/cleanup fees
+- Permits or inspections
+- Waiting time / delays
+- Coordination with other trades
+- Material price fluctuations
+- Rework risk
+- Client communication overhead
+- Administrative time
 
-## Output Requirements
-- Provide a recommended price AND a range (min/max)
-- Be conservative - better to slightly overestimate
-- Include all assumptions
+Add a buffer if profit leaks are likely.
 
-Respond with JSON:
+## Respond with JSON:
 {
   "recommendedPrice": number,
   "priceRange": { "min": number, "max": number },
   "estimatedHours": number,
-  "hourlyRate": number,
   "complexity": "simple|moderate|complex",
-  "breakdown": {
-    "laborCost": number,
-    "overhead": number,
-    "profit": number,
-    "riskPremium": number,
-    "scopePremium": number
-  },
+  "isAddOnWork": true/false,
   "confidence": 0-1,
+  "profitLeaks": {
+    "identified": ["list of potential profit leaks"],
+    "bufferAdded": number,
+    "bufferReason": "why buffer was added"
+  },
   "reasoning": "Brief explanation"
 }`;
 
-const VERIFICATION_PROMPT = `You are a verification agent. Validate pricing for accuracy and defensibility.
+const VERIFICATION_PROMPT = `You are a verification agent. Check if pricing makes sense.
 
-## Verification Checks
-1. Mathematical accuracy - calculations sum correctly
-2. Rate verification - within market range (±20%)
-3. Price leak detection - check for missing costs
-4. Reasonableness - proportional to scope change
-5. Defensibility - can be justified to client
+## IMPORTANT: Trust the Market Research
+If the pricing calculator used market research data to determine the price, TRUST IT.
+Do NOT increase prices just because they seem "low" - add-on work IS cheaper than standalone.
 
-Respond with JSON:
+## Only flag issues if:
+1. Math is wrong
+2. Price is OUTSIDE the market research range provided
+3. Something was clearly missed
+
+## Respond with JSON:
 {
   "overallStatus": "passed|passed_with_warnings|failed",
   "confidenceScore": 0-100,
-  "issues": ["list of any issues found"],
-  "recommendations": ["recommendations"],
+  "issues": ["only real issues"],
   "approvedForClient": true/false,
-  "adjustmentNeeded": number // 0 if none
-}`;
+  "adjustmentNeeded": 0
+}
+
+NOTE: adjustmentNeeded should almost always be 0. Only use non-zero if there's a clear error.`;
 
 // ============================================================================
 // Helper Functions
@@ -194,6 +212,34 @@ function gatherContext(
   requestText: string,
   clarificationAnswers?: Record<string, string>
 ): PricingContext {
+  console.log('\n=== GATHERING PROJECT CONTEXT ===');
+  console.log('User:', {
+    id: user.id,
+    name: user.name,
+    location: user.location,
+    hourlyRate: user.hourlyRate,
+    specializations: user.specializations,
+    positioning: user.competitivePositioning,
+    industry: user.industry,
+  });
+  console.log('Project Rules:', {
+    hourlyRate: rules.hourlyRate,
+    currency: rules.currency,
+    projectType: rules.projectType,
+    originalContractPrice: rules.originalContractPrice,
+    clientLocation: rules.clientLocation,
+    deliverables: rules.deliverables,
+    revisionsIncluded: rules.revisionsIncluded,
+    revisionsUsed: rules.revisionsUsed,
+    rulesSummary: rules.rulesSummary?.slice(0, 200),
+  });
+  console.log('Context Notes:', contextNotes.map(n => n.content));
+  console.log('Request Text:', requestText.slice(0, 300) + (requestText.length > 300 ? '...' : ''));
+  if (clarificationAnswers) {
+    console.log('Clarification Answers:', clarificationAnswers);
+  }
+  console.log('=================================\n');
+
   return {
     freelancer: {
       location: user.location || undefined,
@@ -281,12 +327,20 @@ const anthropic = new Anthropic();
 
 async function runAgent(systemPrompt: string, userPrompt: string): Promise<string> {
   try {
+    console.log('\n=== ANTHROPIC API REQUEST ===');
+    console.log('Model: claude-sonnet-4-5-20250929');
+    console.log('System prompt (first 200 chars):', systemPrompt.slice(0, 200) + '...');
+    console.log('User prompt (first 500 chars):', userPrompt.slice(0, 500) + '...');
+    console.log('Sending request...');
+
+    const startTime = Date.now();
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     });
+    const duration = Date.now() - startTime;
 
     let result = '';
     for (const block of response.content) {
@@ -295,26 +349,89 @@ async function runAgent(systemPrompt: string, userPrompt: string): Promise<strin
       }
     }
 
+    console.log('=== ANTHROPIC API RESPONSE ===');
+    console.log('Duration:', duration, 'ms');
+    console.log('Usage:', response.usage);
+    console.log('Stop reason:', response.stop_reason);
+    console.log('Response (first 500 chars):', result.slice(0, 500) + '...');
+    console.log('==============================\n');
+
     return result;
   } catch (error) {
+    console.error('=== ANTHROPIC API ERROR ===');
     console.error('Agent execution error:', error);
+    console.error('===========================\n');
     throw error;
   }
 }
 
 async function runAgentWithWebSearch(systemPrompt: string, userPrompt: string): Promise<string> {
-  // Note: Web search would require implementing server-side search tools.
-  // For now, this uses the same API call but instructs the model to use its training data.
   try {
-    const enhancedPrompt = `${userPrompt}
+    console.log('\n=== ANTHROPIC API REQUEST (Web Search Agent) ===');
+    console.log('Model: claude-sonnet-4-5-20250929');
+    console.log('Web Search: ENABLED');
+    console.log('System prompt (first 200 chars):', systemPrompt.slice(0, 200) + '...');
+    console.log('User prompt (first 500 chars):', userPrompt.slice(0, 500) + '...');
+    console.log('Sending request with web search tool...');
 
-Note: Use your training data knowledge of typical market rates and industry standards. Provide your best estimates based on available information.`;
+    const startTime = Date.now();
+
+    // Use Anthropic's web search tool for real-time pricing data
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 4096,
+      system: systemPrompt,
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 5,
+        } as any, // Type assertion needed for beta feature
+      ],
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const duration = Date.now() - startTime;
+
+    let result = '';
+    let searchResults: string[] = [];
+
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        result += block.text;
+      } else if (block.type === 'web_search_tool_result' || (block as any).type === 'tool_result') {
+        // Capture web search results for logging
+        searchResults.push(JSON.stringify(block));
+      }
+    }
+
+    console.log('=== ANTHROPIC API RESPONSE (Web Search Agent) ===');
+    console.log('Duration:', duration, 'ms');
+    console.log('Usage:', response.usage);
+    console.log('Stop reason:', response.stop_reason);
+    if (searchResults.length > 0) {
+      console.log('Web searches performed:', searchResults.length);
+    }
+    console.log('Response (first 500 chars):', result.slice(0, 500) + '...');
+    console.log('=================================================\n');
+
+    return result;
+  } catch (error: any) {
+    // If web search fails (not available, rate limited, etc.), fall back to standard call
+    console.error('=== WEB SEARCH FAILED, FALLING BACK ===');
+    console.error('Error:', error.message || error);
+    console.log('Retrying without web search...');
+
+    // Fallback: Use standard API call with explicit instruction
+    const fallbackPrompt = `${userPrompt}
+
+IMPORTANT: Web search is unavailable. Use your training knowledge to provide the best market rate estimates. Be conservative and note that these are estimates without live data.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       system: systemPrompt,
-      messages: [{ role: 'user', content: enhancedPrompt }],
+      messages: [{ role: 'user', content: fallbackPrompt }],
     });
 
     let result = '';
@@ -324,10 +441,10 @@ Note: Use your training data knowledge of typical market rates and industry stan
       }
     }
 
+    console.log('Fallback response received');
+    console.log('=================================================\n');
+
     return result;
-  } catch (error) {
-    console.error('Agent with web search error:', error);
-    throw error;
   }
 }
 
@@ -356,6 +473,18 @@ export async function generateClarificationQuestions(
   contextNotes: ContextNote[] = [],
   projectInfo?: { name: string; description?: string | null }
 ): Promise<ClarificationQuestion[]> {
+  console.log('\n=== GENERATING CLARIFICATION QUESTIONS ===');
+  console.log('Project Info:', projectInfo);
+  console.log('Request Text:', requestText);
+  console.log('Rules:', {
+    projectType: rules.projectType,
+    deliverables: rules.deliverables,
+    hourlyRate: rules.hourlyRate,
+    rulesSummary: rules.rulesSummary?.slice(0, 200),
+  });
+  console.log('Context Notes:', contextNotes.map(n => n.content));
+  console.log('==========================================\n');
+
   // Build comprehensive project context that the freelancer already provided
   const deliverablesList = rules.deliverables && (rules.deliverables as string[]).length > 0
     ? (rules.deliverables as string[]).join(', ')
@@ -403,12 +532,24 @@ Remember:
     const parsed = parseJSON<{ questions: ClarificationQuestion[] }>(response);
 
     if (parsed?.questions) {
-      return parsed.questions.map((q, i) => ({
+      const questions = parsed.questions.map((q, i) => ({
         ...q,
         id: q.id || `q${i + 1}`,
         priority: q.priority || 1,
         category: q.category || 'other',
       }));
+
+      console.log('\n=== CLARIFICATION QUESTIONS GENERATED ===');
+      console.log('Number of questions:', questions.length);
+      questions.forEach((q, i) => {
+        console.log(`Q${i + 1}: ${q.question}`);
+        if (q.type === 'select' && q.options) {
+          console.log(`   Options: ${q.options.join(', ')}`);
+        }
+      });
+      console.log('=========================================\n');
+
+      return questions;
     }
   } catch (error) {
     console.error('Clarification agent error:', error);
@@ -447,11 +588,19 @@ Remember:
 export async function analyzeRequestFull(
   input: OrchestratorInput
 ): Promise<OrchestratorResult> {
-  const { requestText, clarificationAnswers, rules, user, contextNotes = [] } = input;
+  const { requestText, clarificationAnswers, rules, user, contextNotes = [], pastCorrections = [] } = input;
+
+  console.log('\n╔══════════════════════════════════════════════════════════════╗');
+  console.log('║         STARTING FULL MULTI-AGENT ANALYSIS                   ║');
+  console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
   // Gather pricing context
   const pricingContext = gatherContext(user, rules, contextNotes, requestText, clarificationAnswers);
   const contextPrompt = formatContextForPrompt(pricingContext, rules);
+
+  console.log('=== FORMATTED CONTEXT FOR PROMPTS ===');
+  console.log(contextPrompt);
+  console.log('=====================================\n');
 
   // Format answers for prompts
   const answersText = clarificationAnswers
@@ -464,6 +613,10 @@ export async function analyzeRequestFull(
     // =========================================================================
     // PHASE 1: Scope Analysis
     // =========================================================================
+    console.log('┌─────────────────────────────────────────┐');
+    console.log('│ PHASE 1: SCOPE ANALYSIS                 │');
+    console.log('└─────────────────────────────────────────┘');
+
     const scopePrompt = `${contextPrompt}
 
 ## Client Request
@@ -476,39 +629,63 @@ Analyze the scope change - classify it and assess impact.`;
 
     const scopeResponse = await runAgent(SCOPE_ANALYZER_PROMPT, scopePrompt);
     const scopeData = parseJSON<{
+      verdict: 'IN_SCOPE' | 'OUT_OF_SCOPE' | 'BOUNDARY_CASE' | 'CLARIFICATION_ONLY';
+      verdictReasoning: string;
+      contractAlignment: {
+        matchingDeliverables: string[];
+        conflictingClauses: string[];
+        grayAreas: string[];
+      };
       changes: any[];
       overallSeverity: string;
       effortMultiplier: number;
       isOutOfScope: boolean;
+      recommendedAction: 'approve_free' | 'price_as_change_order' | 'negotiate' | 'decline';
     }>(scopeResponse);
+
+    console.log('Scope Creep Verdict:', scopeData?.verdict, '-', scopeData?.verdictReasoning);
 
     // =========================================================================
     // PHASE 2: Market Research (with web search)
     // =========================================================================
+    console.log('\n┌─────────────────────────────────────────┐');
+    console.log('│ PHASE 2: MARKET RESEARCH                │');
+    console.log('└─────────────────────────────────────────┘');
+    console.log('Scope Analysis Result:', JSON.stringify(scopeData, null, 2));
+
     const skills = pricingContext.freelancer.specializations || ['general'];
     const location = pricingContext.freelancer.location || pricingContext.project.clientLocation || 'USA';
 
-    const marketPrompt = `Research current market rates for:
-- Skills: ${skills.join(', ')}
-- Location: ${location}
-- Project Type: ${pricingContext.project.projectType || 'general'}
+    const marketPrompt = `Search for current market prices for: "${requestText}"
 
-Request description: "${requestText}"
+Project Type: ${pricingContext.project.projectType || 'general'}
+Location: ${location}
 
-Search for current hourly rates and scope change markup standards.`;
+Clarification Details:
+${answersText}
+
+Search for real pricing data and determine if this is standalone work or add-on work based on the project context.`;
 
     const marketResponse = await runAgentWithWebSearch(MARKET_RESEARCHER_PROMPT, marketPrompt);
     const marketData = parseJSON<{
-      laborRates: any;
-      scopeChangeMarkup: { recommended: number };
-      locationMultiplier: number;
-      marketInsights: string[];
-      confidence: string;
+      marketPriceRange?: {
+        standalone: { min: number; max: number };
+        asAddOn?: { min: number; max: number };
+      };
+      isLikelyAddOn?: boolean;
+      addOnReasoning?: string;
+      marketInsights?: string[];
+      confidence?: string;
     }>(marketResponse);
 
     // =========================================================================
     // PHASE 3: Pricing Calculation
     // =========================================================================
+    console.log('\n┌─────────────────────────────────────────┐');
+    console.log('│ PHASE 3: PRICING CALCULATION            │');
+    console.log('└─────────────────────────────────────────┘');
+    console.log('Market Research Result:', JSON.stringify(marketData, null, 2));
+
     const complexity = scopeData?.overallSeverity === 'major' ? 'complex'
       : scopeData?.overallSeverity === 'significant' ? 'complex'
       : scopeData?.overallSeverity === 'moderate' ? 'moderate'
@@ -517,30 +694,39 @@ Search for current hourly rates and scope change markup standards.`;
     const freelancerRate = pricingContext.freelancer.hourlyRate ||
       (rules.hourlyRate ? parseFloat(rules.hourlyRate.toString()) : 100);
 
-    const pricingPrompt = `${contextPrompt}
+    // Build market price info for pricing prompt
+    const marketPriceInfo = marketData?.marketPriceRange
+      ? `
+## MARKET RESEARCH RESULTS (USE THIS!)
+- Standalone Price Range: $${marketData.marketPriceRange.standalone.min} - $${marketData.marketPriceRange.standalone.max}
+${marketData.marketPriceRange.asAddOn
+  ? `- Add-On Price Range: $${marketData.marketPriceRange.asAddOn.min} - $${marketData.marketPriceRange.asAddOn.max}`
+  : ''}
+- Is Add-On Work: ${marketData.isLikelyAddOn ? 'YES' : 'NO'}
+${marketData.addOnReasoning ? `- Reasoning: ${marketData.addOnReasoning}` : ''}
+${marketData.marketInsights?.length ? `- Market Insights: ${marketData.marketInsights.join('; ')}` : ''}
+`
+      : '';
+
+    const pricingPrompt = `## Project Context
+${contextPrompt}
 
 ## Request
 "${requestText}"
 
 ## Clarification Answers
 ${answersText}
+${marketPriceInfo}
+${pastCorrections.length > 0 ? `
+## LEARN FROM PAST CORRECTIONS
+The freelancer has corrected AI pricing before. Use these as guidance:
+${pastCorrections.slice(0, 5).map(c =>
+  `- "${c.requestText.slice(0, 50)}..." → AI: $${c.aiPrice}, Corrected to: $${c.correctedPrice}${c.reason ? ` (Reason: ${c.reason})` : ''}`
+).join('\n')}
 
-## Scope Analysis
-- Severity: ${scopeData?.overallSeverity || 'moderate'}
-- Complexity: ${complexity}
-- Effort Multiplier: ${scopeData?.effortMultiplier || 1.2}
-
-## Market Research
-- Location Multiplier: ${marketData?.locationMultiplier || 1.0}
-- Scope Change Markup: ${marketData?.scopeChangeMarkup?.recommended || 15}%
-- Market Insights: ${marketData?.marketInsights?.join('; ') || 'Standard market rates'}
-
-## Freelancer's Rate
-- Hourly Rate: $${freelancerRate}/hr
-- Overhead: ${((pricingContext.freelancer.overhead || 0.2) * 100).toFixed(0)}%
-- Profit Margin: ${((pricingContext.freelancer.profitMargin || 0.15) * 100).toFixed(0)}%
-
-Calculate the recommended price for this scope change.`;
+Adjust your pricing to match the freelancer's preferences.
+` : ''}
+Calculate the price. Use the add-on price range if this is add-on work, otherwise use standalone range.`;
 
     const pricingResponse = await runAgent(PRICING_CALCULATOR_PROMPT, pricingPrompt);
     const pricingData = parseJSON<{
@@ -552,11 +738,27 @@ Calculate the recommended price for this scope change.`;
       breakdown: any;
       confidence: number;
       reasoning: string;
+      profitLeaks?: {
+        identified: string[];
+        bufferAdded: number;
+        bufferReason: string;
+      };
     }>(pricingResponse);
+
+    // Log profit leak detection
+    if (pricingData?.profitLeaks?.identified?.length) {
+      console.log('Profit Leaks Detected:', pricingData.profitLeaks.identified);
+      console.log('Buffer Added: $' + pricingData.profitLeaks.bufferAdded);
+    }
 
     // =========================================================================
     // PHASE 4: Verification
     // =========================================================================
+    console.log('\n┌─────────────────────────────────────────┐');
+    console.log('│ PHASE 4: VERIFICATION                   │');
+    console.log('└─────────────────────────────────────────┘');
+    console.log('Pricing Calculation Result:', JSON.stringify(pricingData, null, 2));
+
     const verifyPrompt = `Verify this pricing:
 
 ## Request
@@ -587,12 +789,25 @@ Verify reasonableness, market alignment, and defensibility.`;
     // =========================================================================
     // Build Final Result
     // =========================================================================
-    const finalPrice = pricingData?.recommendedPrice
-      ? pricingData.recommendedPrice + (verifyData?.adjustmentNeeded || 0)
-      : freelancerRate * 4; // Fallback: 4 hours at freelancer rate
+    console.log('\n┌─────────────────────────────────────────┐');
+    console.log('│ BUILDING FINAL RESULT                   │');
+    console.log('└─────────────────────────────────────────┘');
+    console.log('Verification Result:', JSON.stringify(verifyData, null, 2));
+
+    // Use the pricing calculator's price directly - don't let verification override it
+    const finalPrice = pricingData?.recommendedPrice || freelancerRate * 4;
 
     // Generate scope summary from answers
     const scopeSummary = generateScopeSummary(requestText, clarificationAnswers);
+
+    console.log('\n╔══════════════════════════════════════════════════════════════╗');
+    console.log('║         ANALYSIS COMPLETE - FINAL PRICING                    ║');
+    console.log('╠══════════════════════════════════════════════════════════════╣');
+    console.log(`║ Suggested Price: $${finalPrice.toFixed(2).padEnd(43)}║`);
+    console.log(`║ Estimated Hours: ${(pricingData?.estimatedHours || 4).toString().padEnd(44)}║`);
+    console.log(`║ Complexity: ${(pricingData?.complexity || complexity).padEnd(49)}║`);
+    console.log(`║ Confidence: ${((verifyData?.confidenceScore ? verifyData.confidenceScore / 100 : 0.75) * 100).toFixed(0)}%${' '.repeat(46)}║`);
+    console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
     return {
       verdict: 'pending_review', // Freelancer always decides
@@ -610,6 +825,22 @@ Verify reasonableness, market alignment, and defensibility.`;
       },
       complexity: pricingData?.complexity || complexity,
       confidence: verifyData?.confidenceScore ? verifyData.confidenceScore / 100 : 0.75,
+
+      // Scope Creep Analysis - AI's assessment of whether request is in/out of scope
+      scopeAnalysis: scopeData ? {
+        verdict: scopeData.verdict || 'BOUNDARY_CASE',
+        verdictReasoning: scopeData.verdictReasoning || 'Unable to determine scope status.',
+        contractAlignment: scopeData.contractAlignment || {
+          matchingDeliverables: [],
+          conflictingClauses: [],
+          grayAreas: [],
+        },
+        changes: scopeData.changes || [],
+        overallSeverity: (scopeData.overallSeverity as 'minor' | 'moderate' | 'significant' | 'major') || 'moderate',
+        effortMultiplier: scopeData.effortMultiplier || 1.0,
+        isOutOfScope: scopeData.isOutOfScope ?? (scopeData.verdict === 'OUT_OF_SCOPE'),
+        recommendedAction: scopeData.recommendedAction || 'price_as_change_order',
+      } : undefined,
 
       priceBreakdown: pricingData?.breakdown ? {
         directCosts: {
@@ -640,6 +871,9 @@ Verify reasonableness, market alignment, and defensibility.`;
       marketResearchSummary: marketData?.marketInsights?.join('. ') || 'Standard market rates applied.',
       pricingReasoning: pricingData?.reasoning || 'Pricing based on scope analysis and market research.',
       improvementTips: verifyData?.recommendations || [],
+
+      // Profit leak detection
+      profitLeaks: pricingData?.profitLeaks || undefined,
     };
   } catch (error) {
     console.error('Orchestrator error:', error);

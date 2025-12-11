@@ -58,7 +58,7 @@ export const projects = pgTable('projects', {
   clientName: text('client_name'),
   clientEmail: text('client_email'),
   isActive: boolean('is_active').default(true),
-  requireApproval: boolean('require_approval').default(false), // Freelancer approves quotes first
+  requireApproval: boolean('require_approval').default(true), // Freelancer approves quotes first
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -127,24 +127,9 @@ export const requests = pgTable('requests', {
   status: text('status').notNull().default('pending'), // pending, in_scope, out_of_scope, approved, declined, paid
   isInScope: boolean('is_in_scope'),
 
-  // AI reasoning and pricing
-  aiAnalysis: jsonb('ai_analysis').$type<{
-    verdict: 'in_scope' | 'out_of_scope' | 'needs_clarification' | 'pending_review';
-    reasoning: string;
-    relevantRules: string[];
-    estimatedHours?: number;
-    suggestedPrice?: number;
-    revisionCount?: string; // e.g., "Revision 2 of 3"
-    confidence?: number;
-    complexity?: 'simple' | 'moderate' | 'complex';
-    clarificationQuestions?: Array<{
-      id: string;
-      question: string;
-      type: 'text' | 'select' | 'multiselect';
-      options?: string[];
-    }>;
-    clarificationAnswers?: Record<string, string>;
-  }>(),
+  // AI reasoning and pricing - flexible type to accommodate full OrchestratorResult
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  aiAnalysis: jsonb('ai_analysis').$type<Record<string, any>>(),
 
   // Agentic pricing transparency fields
   pricingReasoning: text('pricing_reasoning'), // Educational explanation of how price was calculated

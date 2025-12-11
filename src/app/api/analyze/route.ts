@@ -64,9 +64,6 @@ export async function POST(request: NextRequest) {
     // Check if this is a submission with answers (second call) or initial request (first call)
     const hasAnswers = clarificationAnswers && Object.keys(clarificationAnswers).length > 0;
 
-    let analysis: OrchestratorResult;
-    let suggestedPrice: number | null = null;
-
     // Project info for context
     const projectInfo = {
       name: project.name,
@@ -75,26 +72,73 @@ export async function POST(request: NextRequest) {
 
     if (hasAnswers) {
       // =====================================================================
-      // PHASE 2-6: Full Multi-Agent Analysis
-      // Client provided answers - run complete scope creep pricing workflow
+      // FAST PATH: Save request immediately, process AI in background
+      // Client doesn't wait for AI analysis - it happens async
       // =====================================================================
-      analysis = await analyzeRequestFull({
+
+      // Save the request immediately with 'analyzing' status
+      const [savedRequest] = await db.insert(requests).values({
+        projectId: project.id,
+        clientName: clientName || null,
+        clientEmail: clientEmail || null,
         requestText,
-        clarificationAnswers,
-        rules: rules as any,
-        user: project.user,
-        contextNotes: project.contextNotes || [],
+        status: 'analyzing', // New status: AI is processing
+        isInScope: null,
+        aiAnalysis: {
+          verdict: 'pending_review',
+          reasoning: 'AI analysis in progress...',
+          scopeSummary: requestText,
+          relevantRules: [],
+          confidence: 0,
+          clarificationAnswers,
+        },
+        quotedPrice: null,
+        freelancerApproved: null,
+        freelancerApprovedAt: null,
+      }).returning();
+
+      // Trigger background analysis (fire and forget)
+      // Using fetch to call our own API endpoint
+      const baseUrl = request.headers.get('origin') ||
+                      request.headers.get('x-forwarded-host') ||
+                      'http://localhost:3000';
+
+      // Fire off background analysis - don't await
+      fetch(`${baseUrl}/api/analyze/background`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: savedRequest.id,
+          requestText,
+          clarificationAnswers,
+          projectId: project.id,
+        }),
+      }).catch(err => {
+        console.error('Failed to trigger background analysis:', err);
       });
 
-      suggestedPrice = analysis.suggestedPrice || null;
-      console.log('Full analysis completed:', {
-        suggestedPrice,
-        hasBreakdown: !!analysis.priceBreakdown,
-        estimatedHours: analysis.estimatedHours,
+      // Return immediately to client
+      return NextResponse.json({
+        analysis: {
+          verdict: 'pending_review',
+          reasoning: 'Your request has been submitted! The freelancer will review it shortly.',
+          scopeSummary: requestText,
+          relevantRules: [],
+          confidence: 1.0,
+          clarificationAnswers,
+        },
+        request: savedRequest,
+        project: {
+          name: project.name,
+          clientName: project.clientName,
+        },
+        // No pricing yet - will be available after analysis completes
+        pricing: null,
+        status: 'analyzing',
       });
     } else {
       // =====================================================================
-      // PHASE 1: Information Gathering
+      // PHASE 1: Information Gathering (this is fast, ~2-3 seconds)
       // No answers yet - generate clarification questions
       // =====================================================================
       const clarificationQuestions = await generateClarificationQuestions(
@@ -105,7 +149,7 @@ export async function POST(request: NextRequest) {
       );
 
       // Return pending_review with questions - freelancer will decide scope
-      analysis = {
+      const analysis: OrchestratorResult = {
         verdict: 'pending_review',
         reasoning: 'This request has been submitted for review. Please answer the clarification questions below to help the freelancer understand your needs and provide an accurate quote.',
         scopeSummary: requestText,
@@ -113,90 +157,18 @@ export async function POST(request: NextRequest) {
         confidence: 1.0,
         clarificationQuestions,
       };
+
+      // Don't save yet - wait for answers
+      return NextResponse.json({
+        analysis,
+        request: null,
+        project: {
+          name: project.name,
+          clientName: project.clientName,
+        },
+        pricing: null,
+      });
     }
-
-    // SIMPLIFIED STATUS: AI never decides scope
-    // - No answers yet = pending_questions (client needs to answer)
-    // - Has answers = pending_freelancer_approval (freelancer decides scope)
-    const status = hasAnswers ? 'pending_freelancer_approval' : 'pending_questions';
-
-    // Save the request if needed
-    let savedRequest = null;
-    if (save) {
-      // Include clarification answers in the analysis if provided
-      const analysisWithAnswers = clarificationAnswers
-        ? { ...analysis, clarificationAnswers }
-        : analysis;
-
-      const [newRequest] = await db.insert(requests).values({
-        projectId: project.id,
-        clientName: clientName || null,
-        clientEmail: clientEmail || null,
-        requestText,
-        status,
-        isInScope: null, // Freelancer will decide, not AI
-        aiAnalysis: analysisWithAnswers,
-
-        // AI's SUGGESTED price (freelancer may change this)
-        quotedPrice: suggestedPrice?.toString() || null,
-        estimatedHours: analysis.estimatedHours?.toString() || null,
-        laborCost: analysis.priceBreakdown?.directCosts?.labor?.toString() || null,
-        overheadCost: analysis.priceBreakdown?.indirectCosts?.pmOverhead?.toString() || null,
-        profitAmount: analysis.priceBreakdown?.adjustments?.scopePremiumAmt?.toString() || null,
-
-        // Buffer tracking
-        baseSubtotal: analysis.priceBreakdown?.directCosts?.subtotal?.toString() || null,
-        bufferPercentage: analysis.priceBreakdown?.adjustments?.riskPremiumPct?.toString() || null,
-        bufferAmount: analysis.priceBreakdown?.adjustments?.riskPremiumAmt?.toString() || null,
-        bufferReasoning: 'Market-informed pricing with complexity buffer',
-
-        // AI analysis transparency fields (for freelancer review)
-        pricingReasoning: analysis.pricingReasoning || null,
-        marketResearchData: analysis.marketResearchSummary ? {
-          searchQueries: [],
-          rateRanges: [],
-          marketInsights: [analysis.marketResearchSummary],
-          searchedAt: new Date().toISOString(),
-        } : null,
-        pricingContextUsed: analysis.pricingContextUsed ? {
-          freelancerLocation: analysis.pricingContextUsed.freelancer?.location,
-          freelancerSpecializations: analysis.pricingContextUsed.freelancer?.specializations,
-          freelancerPositioning: analysis.pricingContextUsed.freelancer?.positioning,
-          projectType: analysis.pricingContextUsed.project?.projectType,
-          originalContractPrice: analysis.pricingContextUsed.project?.originalContractPrice,
-          clientLocation: analysis.pricingContextUsed.project?.clientLocation,
-          hourlyRate: analysis.pricingContextUsed.freelancer?.hourlyRate,
-        } : null,
-
-        // Approval tracking - freelancer hasn't reviewed yet
-        freelancerApproved: null,
-        freelancerApprovedAt: null,
-      }).returning();
-      savedRequest = newRequest;
-    }
-
-    return NextResponse.json({
-      analysis,
-      request: savedRequest,
-      project: {
-        name: project.name,
-        clientName: project.clientName,
-      },
-      // AI's pricing SUGGESTION (freelancer will review and decide)
-      // Always include suggestedPrice at top level for easy access
-      pricing: {
-        suggestedPrice: analysis.suggestedPrice || suggestedPrice,
-        priceRange: analysis.priceRange,
-        breakdown: analysis.priceBreakdown || null,
-        confidence: analysis.confidence,
-        estimatedHours: analysis.estimatedHours,
-        // Transparency data for freelancer review
-        reasoning: analysis.pricingReasoning,
-        marketResearchSummary: analysis.marketResearchSummary,
-        contextUsed: analysis.pricingContextUsed,
-        improvementTips: analysis.improvementTips,
-      },
-    });
   } catch (error) {
     console.error('Error analyzing request:', error);
 

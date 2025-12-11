@@ -401,7 +401,8 @@ export function RequestPortal({ project }: RequestPortalProps) {
           <div className="space-y-6">
             {/* Waiting for Freelancer Review - this is the default state now */}
             {/* AI does NOT decide scope - only freelancer does */}
-            {(result.request.status === 'pending_freelancer_approval' ||
+            {(result.request.status === 'analyzing' ||
+              result.request.status === 'pending_freelancer_approval' ||
               result.request.status === 'pending_questions' ||
               result.analysis.verdict === 'pending_review') ? (
               <>
@@ -437,46 +438,15 @@ export function RequestPortal({ project }: RequestPortalProps) {
                   </Card>
                 )}
 
-                {/* Estimated Price - only show if freelancer allows it */}
-                {!project.requireApproval && (() => {
-                  const displayPrice = result.request.quotedPrice
-                    ? parseFloat(result.request.quotedPrice)
-                    : result.pricing?.suggestedPrice || result.analysis.suggestedPrice;
-
-                  if (displayPrice) {
-                    return (
-                      <Card className="border-emerald-200 bg-emerald-50">
-                        <CardContent className="py-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-emerald-600 font-medium mb-1">Estimated Price</p>
-                              <p className="text-3xl font-bold text-emerald-700">
-                                ${displayPrice.toFixed(2)}
-                              </p>
-                              <p className="text-sm text-slate-500 mt-1">
-                                Final price confirmed after review
-                              </p>
-                            </div>
-                            <div className="p-3 rounded-xl bg-emerald-100">
-                              <DollarSign className="h-8 w-8 text-emerald-600" />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  }
-                  return null;
-                })()}
+                {/* Price is NOT shown to client until freelancer reviews and approves */}
+                {/* The freelancer will set the final price after reviewing the AI analysis */}
 
                 <Card className="border-blue-200 bg-blue-50">
                   <CardContent className="py-6 text-center">
                     <Clock className="h-12 w-12 text-blue-600 mx-auto mb-3" />
                     <h3 className="text-xl font-semibold text-blue-900 mb-2">What Happens Next?</h3>
                     <p className="text-blue-700 mb-4">
-                      {project.requireApproval
-                        ? `${project.freelancerName} will review your request and send you a quote. You'll be notified when it's ready.`
-                        : `${project.freelancerName} will review your request and confirm the final price. You'll be notified when it's ready.`
-                      }
+                      {project.freelancerName} will review your request and send you a quote. You&apos;ll be notified when it&apos;s ready.
                     </p>
                     <Button variant="outline" onClick={resetForm}>
                       Submit Another Request

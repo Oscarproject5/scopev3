@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { NewProjectModal } from '@/components/projects/new-project-modal';
 import {
   Shield,
   LayoutDashboard,
@@ -76,6 +77,7 @@ const bottomNavItems = [
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
 
   const initials = user.name
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase()
@@ -111,17 +113,16 @@ export function Sidebar({ user }: SidebarProps) {
 
         {/* New Project Button */}
         <div className="p-3">
-          <Link href="/dashboard/projects/new">
-            <Button
-              className={cn(
-                'bg-emerald-600 hover:bg-emerald-700 w-full',
-                collapsed ? 'px-0' : ''
-              )}
-            >
-              <Plus className="h-4 w-4" />
-              {!collapsed && <span className="ml-2">New Project</span>}
-            </Button>
-          </Link>
+          <Button
+            onClick={() => setShowNewProjectModal(true)}
+            className={cn(
+              'bg-emerald-600 hover:bg-emerald-700 w-full',
+              collapsed ? 'px-0' : ''
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            {!collapsed && <span className="ml-2">New Project</span>}
+          </Button>
         </div>
 
         {/* Main Navigation */}
@@ -216,6 +217,12 @@ export function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
       </aside>
+
+      {/* New Project Modal */}
+      <NewProjectModal
+        open={showNewProjectModal}
+        onOpenChange={setShowNewProjectModal}
+      />
     </>
   );
 }

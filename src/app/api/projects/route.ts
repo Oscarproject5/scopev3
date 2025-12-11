@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       description,
       clientName,
       clientEmail,
-      requireApproval: requireApproval || false,
+      requireApproval: requireApproval !== undefined ? requireApproval : true,
     }).returning();
 
     // Create project rules
